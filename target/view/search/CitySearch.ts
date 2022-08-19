@@ -1,7 +1,7 @@
 import React, { Component, Fragment, ReactNode } from "react";
 import { UserData, IAnterosRemoteResource } from "@anterostecnologia/anteros-react-api2";
-import { AnterosEntity, AnterosEntity, ADD, AnterosView, AnterosViewProps, AnterosViewState, connectViewWithStore, EDIT, SEARCH } from "@anterostecnologia/anteros-react-mvc";
-import { AnterosTableTemplate, AnterosFormTemplate, AnterosFormComponent, AnterosFormComponentProps, AnterosFormComponentState } from "@anterostecnologia/anteros-react-template2";
+import { AnterosEntity, ADD, AnterosSearchView, connectSearchViewWithStore } from "@anterostecnologia/anteros-react-mvc";
+import { AnterosTableTemplate, AnterosSearchTemplate } from "@anterostecnologia/anteros-react-template2";
 import { PAGE_SIZE } from "../AppConstants";
 import {resolve, TYPE} from "../ioc/ioc";
 import {CityController} from "../controller/CityController";
@@ -12,19 +12,12 @@ import { RouteComponentProps } from "react-router";
 import { QueryFields, QueryField } from "@anterostecnologia/anteros-react-querybuilder";
 import { boundClass, AnterosSweetAlert, If, Then } from "@anterostecnologia/anteros-react-core";
 import { AnterosRow, AnterosCol } from "@anterostecnologia/anteros-react-layout";
-import { AnterosFormGroup } from "@anterostecnologia/anteros-react-containers";
-import { AnterosLabel } from "@anterostecnologia/anteros-react-label";
-import { AnterosEdit } from "@anterostecnologia/anteros-react-editors";
 import { city, homeDefault } from "../route/routes";
 
-interface CityViewProps extends AnterosViewProps<CityEntity, typeof CityEntity.prototype.id> {
-}
-
-interface CityViewState extends AnterosViewState {
-}
+export const CITY_SEARCH_MODAL = "CitySearch";
 
 @boundClass
-class CityView extends AnterosView<CityEntity, typeof CityEntity.prototype.id,  CityViewProps, CityViewState> {
+class CitySearch extends AnterosSearchView<CityEntity, typeof CityEntity.prototype.id> {
     onCloseView() {
         this.props.history.push(homeDefault);
     }
@@ -34,23 +27,23 @@ class CityView extends AnterosView<CityEntity, typeof CityEntity.prototype.id,  
     }
 
     getCaption() {
-        return "City"
+        return "Consulta City"
     }
 
     getComponentSearch(): ReactNode {
         const { 
-        setDatasource, 
-        hideTour, 
-        setFilter, 
-        needRefresh, 
-        dataSource, 
-        user, 
-        currentFilter, 
-        history, 
-        activeFilterIndex, 
+          setDatasource, 
+          hideTour, 
+          setFilter, 
+          needRefresh, 
+          dataSource, 
+          user, 
+          currentFilter, 
+          history, 
+          activeFilterIndex, 
         } = this.props; 
         return ( 
-         <CityTable 
+          <CityTable 
             user={user} 
             needRefresh={needRefresh} 
             dataSource={dataSource} 
@@ -61,27 +54,14 @@ class CityView extends AnterosView<CityEntity, typeof CityEntity.prototype.id,  
             hideTour={hideTour} 
             remoteResource={this.controller.getResource()} 
             history={history} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 
     getRouteName(): string {
         return city
-    }
-
-    getComponentForm(): ReactNode {
-        return ( 
-        <CityForm 
-          needRefresh={this.props.needRefresh} 
-          hideTour={this.props.hideTour} 
-          history={this.props.history} 
-          setNeedRefresh={this.props.setNeedRefresh} 
-          dataSource={this.props.dataSource} 
-          cancelRoute={this.getRouteName()+"/"+SEARCH} 
-          saveRoute={this.getRouteName()+"/"+SEARCH} 
-          user={this.props.user} 
-        /> 
-        ); 
     }
 }
 
@@ -96,6 +76,8 @@ interface CityTableProps<E extends AnterosEntity, TypeID> {
     setFilter(currentFilter: any, activeFilterIndex: number): any;
     remoteResource: IAnterosRemoteResource<E, TypeID>;
     history: RouteComponentProps["history"];
+    onClickOk(event: any, selectedRecords: any): void;
+    onClickCancel(event: any): void;
 }
 
 @boundClass
@@ -116,8 +98,6 @@ class CityTable extends Component<CityTableProps<CityEntity, any>> {
 
     getRoutes(): any {
         return { 
-          add: `${city}/${ADD}`, 
-          edit: `${city}/${EDIT}`, 
           close: `${homeDefault}`, 
         };
     }
@@ -151,13 +131,13 @@ class CityTable extends Component<CityTableProps<CityEntity, any>> {
           hideTour, 
         } = this.props; 
         return ( 
-          <AnterosTableTemplate 
-            defaultSortFields="id" 
-            filterName="filterCity" 
+          <AnterosSearchTemplate 
+            defaultSortFields="nameCity"  
+            filterName="filterCitySearch" 
             version="v1" 
-            caption={"City"} 
+            caption={"Consulta City"} 
             dataSource={dataSource} 
-            viewName={"cityView"} 
+            viewName={"citySearch"} 
             user={user} 
             pageSize={PAGE_SIZE} 
             currentFilter={currentFilter} 
@@ -171,64 +151,13 @@ class CityTable extends Component<CityTableProps<CityEntity, any>> {
             hideTour={hideTour} 
             history={history} 
             activeFilterIndex={activeFilterIndex} 
+            selectedRecords={[]} 
+            labelField={""} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 }
 
-interface CityFormProps extends AnterosFormComponentProps {
-    dataSource: AnterosDatasource;
-    saveRoute: string;
-    cancelRoute: string;
-    needRefresh: boolean;
-    hideTour(): any;
-    history: RouteComponentProps["history"];
-    setNeedRefresh: Function | undefined;
-    user: UserData;
-}
-
-interface CityFormsState extends AnterosFormComponentState {
-}
-
-@boundClass
-class CityForm extends AnterosFormComponent<CityFormProps, CityFormsState> {
-    constructor(props: CityFormProps) {
-        super(props); 
-         this.state = { 
-          modalOpen: undefined, 
-          lookup: "", 
-          alertIsOpen: false, 
-          alertMessage: undefined, 
-          fieldName: undefined, 
-        };
-    }
-
-    onBeforeSave(): boolean {
-        return true;
-    }
-
-    render(): ReactNode {
-        return ( 
-          <AnterosFormTemplate 
-            dataSource={this.props.dataSource} 
-            hideTour={this.props.hideTour} 
-            history={this.props.history} 
-            caption={"City"} 
-            formName={"FCity"} 
-            setNeedRefresh={this.props.setNeedRefresh} 
-            saveRoute={this.props.saveRoute} 
-            cancelRoute={this.props.cancelRoute} 
-            onBeforeSave={this.onBeforeSave} 
-          > 
-            <Fragment> 
-              <AnterosRow> 
-                <AnterosCol small={12}> 
-                </AnterosCol> 
-              </AnterosRow> 
-            </Fragment> 
-          </AnterosFormTemplate> 
-        ); 
-    }
-}
-
-export default connectViewWithStore(resolve<CityController>(TYPE.city_controller)())(CityView);
+export default connectSearchViewWithStore(resolve<CityController>(TYPE.city_controller)())(CitySearch);

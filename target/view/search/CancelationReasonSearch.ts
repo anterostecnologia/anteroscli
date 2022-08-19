@@ -1,7 +1,7 @@
 import React, { Component, Fragment, ReactNode } from "react";
 import { UserData, IAnterosRemoteResource } from "@anterostecnologia/anteros-react-api2";
-import { AnterosEntity, AnterosEntity, ADD, AnterosView, AnterosViewProps, AnterosViewState, connectViewWithStore, EDIT, SEARCH } from "@anterostecnologia/anteros-react-mvc";
-import { AnterosTableTemplate, AnterosFormTemplate, AnterosFormComponent, AnterosFormComponentProps, AnterosFormComponentState } from "@anterostecnologia/anteros-react-template2";
+import { AnterosEntity, ADD, AnterosSearchView, connectSearchViewWithStore } from "@anterostecnologia/anteros-react-mvc";
+import { AnterosTableTemplate, AnterosSearchTemplate } from "@anterostecnologia/anteros-react-template2";
 import { PAGE_SIZE } from "../AppConstants";
 import {resolve, TYPE} from "../ioc/ioc";
 import {CancelationReasonController} from "../controller/CancelationReasonController";
@@ -12,19 +12,12 @@ import { RouteComponentProps } from "react-router";
 import { QueryFields, QueryField } from "@anterostecnologia/anteros-react-querybuilder";
 import { boundClass, AnterosSweetAlert, If, Then } from "@anterostecnologia/anteros-react-core";
 import { AnterosRow, AnterosCol } from "@anterostecnologia/anteros-react-layout";
-import { AnterosFormGroup } from "@anterostecnologia/anteros-react-containers";
-import { AnterosLabel } from "@anterostecnologia/anteros-react-label";
-import { AnterosEdit } from "@anterostecnologia/anteros-react-editors";
 import { cancelationReason, homeDefault } from "../route/routes";
 
-interface CancelationReasonViewProps extends AnterosViewProps<CancelationReasonEntity, typeof CancelationReasonEntity.prototype.id> {
-}
-
-interface CancelationReasonViewState extends AnterosViewState {
-}
+export const CANCELATIONREASON_SEARCH_MODAL = "CancelationReasonSearch";
 
 @boundClass
-class CancelationReasonView extends AnterosView<CancelationReasonEntity, typeof CancelationReasonEntity.prototype.id,  CancelationReasonViewProps, CancelationReasonViewState> {
+class CancelationReasonSearch extends AnterosSearchView<CancelationReasonEntity, typeof CancelationReasonEntity.prototype.id> {
     onCloseView() {
         this.props.history.push(homeDefault);
     }
@@ -34,23 +27,23 @@ class CancelationReasonView extends AnterosView<CancelationReasonEntity, typeof 
     }
 
     getCaption() {
-        return "CancelationReason"
+        return "Consulta CancelationReason"
     }
 
     getComponentSearch(): ReactNode {
         const { 
-        setDatasource, 
-        hideTour, 
-        setFilter, 
-        needRefresh, 
-        dataSource, 
-        user, 
-        currentFilter, 
-        history, 
-        activeFilterIndex, 
+          setDatasource, 
+          hideTour, 
+          setFilter, 
+          needRefresh, 
+          dataSource, 
+          user, 
+          currentFilter, 
+          history, 
+          activeFilterIndex, 
         } = this.props; 
         return ( 
-         <CancelationReasonTable 
+          <CancelationReasonTable 
             user={user} 
             needRefresh={needRefresh} 
             dataSource={dataSource} 
@@ -61,27 +54,14 @@ class CancelationReasonView extends AnterosView<CancelationReasonEntity, typeof 
             hideTour={hideTour} 
             remoteResource={this.controller.getResource()} 
             history={history} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 
     getRouteName(): string {
         return cancelationReason
-    }
-
-    getComponentForm(): ReactNode {
-        return ( 
-        <CancelationReasonForm 
-          needRefresh={this.props.needRefresh} 
-          hideTour={this.props.hideTour} 
-          history={this.props.history} 
-          setNeedRefresh={this.props.setNeedRefresh} 
-          dataSource={this.props.dataSource} 
-          cancelRoute={this.getRouteName()+"/"+SEARCH} 
-          saveRoute={this.getRouteName()+"/"+SEARCH} 
-          user={this.props.user} 
-        /> 
-        ); 
     }
 }
 
@@ -96,6 +76,8 @@ interface CancelationReasonTableProps<E extends AnterosEntity, TypeID> {
     setFilter(currentFilter: any, activeFilterIndex: number): any;
     remoteResource: IAnterosRemoteResource<E, TypeID>;
     history: RouteComponentProps["history"];
+    onClickOk(event: any, selectedRecords: any): void;
+    onClickCancel(event: any): void;
 }
 
 @boundClass
@@ -116,8 +98,6 @@ class CancelationReasonTable extends Component<CancelationReasonTableProps<Cance
 
     getRoutes(): any {
         return { 
-          add: `${cancelationReason}/${ADD}`, 
-          edit: `${cancelationReason}/${EDIT}`, 
           close: `${homeDefault}`, 
         };
     }
@@ -151,13 +131,13 @@ class CancelationReasonTable extends Component<CancelationReasonTableProps<Cance
           hideTour, 
         } = this.props; 
         return ( 
-          <AnterosTableTemplate 
-            defaultSortFields="id" 
-            filterName="filterCancelationReason" 
+          <AnterosSearchTemplate 
+            defaultSortFields="nameCancelationReason"  
+            filterName="filterCancelationReasonSearch" 
             version="v1" 
-            caption={"CancelationReason"} 
+            caption={"Consulta CancelationReason"} 
             dataSource={dataSource} 
-            viewName={"cancelationReasonView"} 
+            viewName={"cancelationReasonSearch"} 
             user={user} 
             pageSize={PAGE_SIZE} 
             currentFilter={currentFilter} 
@@ -171,64 +151,13 @@ class CancelationReasonTable extends Component<CancelationReasonTableProps<Cance
             hideTour={hideTour} 
             history={history} 
             activeFilterIndex={activeFilterIndex} 
+            selectedRecords={[]} 
+            labelField={""} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 }
 
-interface CancelationReasonFormProps extends AnterosFormComponentProps {
-    dataSource: AnterosDatasource;
-    saveRoute: string;
-    cancelRoute: string;
-    needRefresh: boolean;
-    hideTour(): any;
-    history: RouteComponentProps["history"];
-    setNeedRefresh: Function | undefined;
-    user: UserData;
-}
-
-interface CancelationReasonFormsState extends AnterosFormComponentState {
-}
-
-@boundClass
-class CancelationReasonForm extends AnterosFormComponent<CancelationReasonFormProps, CancelationReasonFormsState> {
-    constructor(props: CancelationReasonFormProps) {
-        super(props); 
-         this.state = { 
-          modalOpen: undefined, 
-          lookup: "", 
-          alertIsOpen: false, 
-          alertMessage: undefined, 
-          fieldName: undefined, 
-        };
-    }
-
-    onBeforeSave(): boolean {
-        return true;
-    }
-
-    render(): ReactNode {
-        return ( 
-          <AnterosFormTemplate 
-            dataSource={this.props.dataSource} 
-            hideTour={this.props.hideTour} 
-            history={this.props.history} 
-            caption={"CancelationReason"} 
-            formName={"FCancelationReason"} 
-            setNeedRefresh={this.props.setNeedRefresh} 
-            saveRoute={this.props.saveRoute} 
-            cancelRoute={this.props.cancelRoute} 
-            onBeforeSave={this.onBeforeSave} 
-          > 
-            <Fragment> 
-              <AnterosRow> 
-                <AnterosCol small={12}> 
-                </AnterosCol> 
-              </AnterosRow> 
-            </Fragment> 
-          </AnterosFormTemplate> 
-        ); 
-    }
-}
-
-export default connectViewWithStore(resolve<CancelationReasonController>(TYPE.cancelationReason_controller)())(CancelationReasonView);
+export default connectSearchViewWithStore(resolve<CancelationReasonController>(TYPE.cancelationReason_controller)())(CancelationReasonSearch);

@@ -1,7 +1,7 @@
 import React, { Component, Fragment, ReactNode } from "react";
 import { UserData, IAnterosRemoteResource } from "@anterostecnologia/anteros-react-api2";
-import { AnterosEntity, AnterosEntity, ADD, AnterosView, AnterosViewProps, AnterosViewState, connectViewWithStore, EDIT, SEARCH } from "@anterostecnologia/anteros-react-mvc";
-import { AnterosTableTemplate, AnterosFormTemplate, AnterosFormComponent, AnterosFormComponentProps, AnterosFormComponentState } from "@anterostecnologia/anteros-react-template2";
+import { AnterosEntity, ADD, AnterosSearchView, connectSearchViewWithStore } from "@anterostecnologia/anteros-react-mvc";
+import { AnterosTableTemplate, AnterosSearchTemplate } from "@anterostecnologia/anteros-react-template2";
 import { PAGE_SIZE } from "../AppConstants";
 import {resolve, TYPE} from "../ioc/ioc";
 import {EmailQueueController} from "../controller/EmailQueueController";
@@ -12,19 +12,12 @@ import { RouteComponentProps } from "react-router";
 import { QueryFields, QueryField } from "@anterostecnologia/anteros-react-querybuilder";
 import { boundClass, AnterosSweetAlert, If, Then } from "@anterostecnologia/anteros-react-core";
 import { AnterosRow, AnterosCol } from "@anterostecnologia/anteros-react-layout";
-import { AnterosFormGroup } from "@anterostecnologia/anteros-react-containers";
-import { AnterosLabel } from "@anterostecnologia/anteros-react-label";
-import { AnterosEdit } from "@anterostecnologia/anteros-react-editors";
 import { emailQueue, homeDefault } from "../route/routes";
 
-interface EmailQueueViewProps extends AnterosViewProps<EmailQueueEntity, typeof EmailQueueEntity.prototype.id> {
-}
-
-interface EmailQueueViewState extends AnterosViewState {
-}
+export const EMAILQUEUE_SEARCH_MODAL = "EmailQueueSearch";
 
 @boundClass
-class EmailQueueView extends AnterosView<EmailQueueEntity, typeof EmailQueueEntity.prototype.id,  EmailQueueViewProps, EmailQueueViewState> {
+class EmailQueueSearch extends AnterosSearchView<EmailQueueEntity, typeof EmailQueueEntity.prototype.id> {
     onCloseView() {
         this.props.history.push(homeDefault);
     }
@@ -34,23 +27,23 @@ class EmailQueueView extends AnterosView<EmailQueueEntity, typeof EmailQueueEnti
     }
 
     getCaption() {
-        return "EmailQueue"
+        return "Consulta EmailQueue"
     }
 
     getComponentSearch(): ReactNode {
         const { 
-        setDatasource, 
-        hideTour, 
-        setFilter, 
-        needRefresh, 
-        dataSource, 
-        user, 
-        currentFilter, 
-        history, 
-        activeFilterIndex, 
+          setDatasource, 
+          hideTour, 
+          setFilter, 
+          needRefresh, 
+          dataSource, 
+          user, 
+          currentFilter, 
+          history, 
+          activeFilterIndex, 
         } = this.props; 
         return ( 
-         <EmailQueueTable 
+          <EmailQueueTable 
             user={user} 
             needRefresh={needRefresh} 
             dataSource={dataSource} 
@@ -61,27 +54,14 @@ class EmailQueueView extends AnterosView<EmailQueueEntity, typeof EmailQueueEnti
             hideTour={hideTour} 
             remoteResource={this.controller.getResource()} 
             history={history} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 
     getRouteName(): string {
         return emailQueue
-    }
-
-    getComponentForm(): ReactNode {
-        return ( 
-        <EmailQueueForm 
-          needRefresh={this.props.needRefresh} 
-          hideTour={this.props.hideTour} 
-          history={this.props.history} 
-          setNeedRefresh={this.props.setNeedRefresh} 
-          dataSource={this.props.dataSource} 
-          cancelRoute={this.getRouteName()+"/"+SEARCH} 
-          saveRoute={this.getRouteName()+"/"+SEARCH} 
-          user={this.props.user} 
-        /> 
-        ); 
     }
 }
 
@@ -96,6 +76,8 @@ interface EmailQueueTableProps<E extends AnterosEntity, TypeID> {
     setFilter(currentFilter: any, activeFilterIndex: number): any;
     remoteResource: IAnterosRemoteResource<E, TypeID>;
     history: RouteComponentProps["history"];
+    onClickOk(event: any, selectedRecords: any): void;
+    onClickCancel(event: any): void;
 }
 
 @boundClass
@@ -116,8 +98,6 @@ class EmailQueueTable extends Component<EmailQueueTableProps<EmailQueueEntity, a
 
     getRoutes(): any {
         return { 
-          add: `${emailQueue}/${ADD}`, 
-          edit: `${emailQueue}/${EDIT}`, 
           close: `${homeDefault}`, 
         };
     }
@@ -151,13 +131,13 @@ class EmailQueueTable extends Component<EmailQueueTableProps<EmailQueueEntity, a
           hideTour, 
         } = this.props; 
         return ( 
-          <AnterosTableTemplate 
-            defaultSortFields="id" 
-            filterName="filterEmailQueue" 
+          <AnterosSearchTemplate 
+            defaultSortFields="nameEmailQueue"  
+            filterName="filterEmailQueueSearch" 
             version="v1" 
-            caption={"EmailQueue"} 
+            caption={"Consulta EmailQueue"} 
             dataSource={dataSource} 
-            viewName={"emailQueueView"} 
+            viewName={"emailQueueSearch"} 
             user={user} 
             pageSize={PAGE_SIZE} 
             currentFilter={currentFilter} 
@@ -171,64 +151,13 @@ class EmailQueueTable extends Component<EmailQueueTableProps<EmailQueueEntity, a
             hideTour={hideTour} 
             history={history} 
             activeFilterIndex={activeFilterIndex} 
+            selectedRecords={[]} 
+            labelField={""} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 }
 
-interface EmailQueueFormProps extends AnterosFormComponentProps {
-    dataSource: AnterosDatasource;
-    saveRoute: string;
-    cancelRoute: string;
-    needRefresh: boolean;
-    hideTour(): any;
-    history: RouteComponentProps["history"];
-    setNeedRefresh: Function | undefined;
-    user: UserData;
-}
-
-interface EmailQueueFormsState extends AnterosFormComponentState {
-}
-
-@boundClass
-class EmailQueueForm extends AnterosFormComponent<EmailQueueFormProps, EmailQueueFormsState> {
-    constructor(props: EmailQueueFormProps) {
-        super(props); 
-         this.state = { 
-          modalOpen: undefined, 
-          lookup: "", 
-          alertIsOpen: false, 
-          alertMessage: undefined, 
-          fieldName: undefined, 
-        };
-    }
-
-    onBeforeSave(): boolean {
-        return true;
-    }
-
-    render(): ReactNode {
-        return ( 
-          <AnterosFormTemplate 
-            dataSource={this.props.dataSource} 
-            hideTour={this.props.hideTour} 
-            history={this.props.history} 
-            caption={"EmailQueue"} 
-            formName={"FEmailQueue"} 
-            setNeedRefresh={this.props.setNeedRefresh} 
-            saveRoute={this.props.saveRoute} 
-            cancelRoute={this.props.cancelRoute} 
-            onBeforeSave={this.onBeforeSave} 
-          > 
-            <Fragment> 
-              <AnterosRow> 
-                <AnterosCol small={12}> 
-                </AnterosCol> 
-              </AnterosRow> 
-            </Fragment> 
-          </AnterosFormTemplate> 
-        ); 
-    }
-}
-
-export default connectViewWithStore(resolve<EmailQueueController>(TYPE.emailQueue_controller)())(EmailQueueView);
+export default connectSearchViewWithStore(resolve<EmailQueueController>(TYPE.emailQueue_controller)())(EmailQueueSearch);

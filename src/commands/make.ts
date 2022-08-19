@@ -2,7 +2,7 @@
 import {Command, Flags} from '@oclif/core'
 import color from '@oclif/color'
 import {InterfaceDeclaration, Project, EnumDeclaration, Scope, VariableDeclarationKind, SourceFile} from 'ts-morph'
-
+import { StringLiteral } from 'typescript'
 
 const ENTITY = 'entity'
 
@@ -11,6 +11,8 @@ const RESOURCE = 'resource'
 const CONTROLLER = 'controller'
 
 const VIEW = 'view'
+
+const SEARCH = 'search'
 
 const CLIENT = color.green('anteros-cli: ')
 
@@ -22,9 +24,13 @@ const SRC_ENTITY = `${SRC_TARGET}/model`
 
 const SRC_VIEW = `${SRC_TARGET}/view`
 
+const SRC_SEARCH = `${SRC_TARGET}/view/search`
+
 const SRC_RESOURCE = `${SRC_TARGET}/resource`
 
 const SRC_CONTROLLER = `${SRC_TARGET}/controller`
+
+const SRC_IOC = `${SRC_TARGET}/ioc`
 
 export default class Make extends Command {
   static description = 'Cria novas classes'
@@ -127,6 +133,8 @@ export default class Make extends Command {
         })
 
         getLayoutReducerName.setBodyText('return LAYOUT_REDUCER;')
+
+        new IocHelper(project).addController(`${ift.getName()}Controller`, `${lName}_controller`)
 
         sourceEntity.save()
       }
@@ -438,7 +446,7 @@ export default class Make extends Command {
         '); \n')
 
         this.makeViewTable(sourceEntity, ift, lName)
-        this.makeFormTable(sourceEntity, ift, lName)
+        this.makeFormTable(sourceEntity, ift)
 
         sourceEntity.addExportAssignment({
           isExportEquals: false,
@@ -537,14 +545,292 @@ export default class Make extends Command {
     })
 
     sourceEntity.addImportDeclaration({
-      defaultImport: '{ AnterosEdit }',
-      moduleSpecifier: '@anterostecnologia/anteros-react-editors',
+      defaultImport: `{ ${lName}, homeDefault }`,
+      moduleSpecifier: '../route/routes',
+    })
+  }
+
+  private addSearchImports(sourceEntity : SourceFile, ift: InterfaceDeclaration, lName: string) {
+    sourceEntity.addImportDeclaration({
+      defaultImport: 'React, { Component, Fragment, ReactNode }',
+      moduleSpecifier: 'react',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ UserData, IAnterosRemoteResource }',
+      moduleSpecifier: '@anterostecnologia/anteros-react-api2',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ AnterosEntity, ADD, AnterosSearchView, connectSearchViewWithStore }',
+      moduleSpecifier: '@anterostecnologia/anteros-react-mvc',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ AnterosTableTemplate, AnterosSearchTemplate }',
+      moduleSpecifier: '@anterostecnologia/anteros-react-template2',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ PAGE_SIZE }',
+      moduleSpecifier: '../AppConstants',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{resolve, TYPE}',
+      moduleSpecifier: '../ioc/ioc',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: `{${ift.getName()}Controller}`,
+      moduleSpecifier: `../controller/${ift.getName()}Controller`,
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: `{${ift.getName()}Entity}`,
+      moduleSpecifier: `../model/${ift.getName()}Entity`,
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ AnterosDataTableColumn, Columns }',
+      moduleSpecifier: '@anterostecnologia/anteros-react-table',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ AnterosDatasource, dataSourceConstants }',
+      moduleSpecifier: '@anterostecnologia/anteros-react-datasource',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ RouteComponentProps }',
+      moduleSpecifier: 'react-router',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ QueryFields, QueryField }',
+      moduleSpecifier: '@anterostecnologia/anteros-react-querybuilder',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ boundClass, AnterosSweetAlert, If, Then }',
+      moduleSpecifier: '@anterostecnologia/anteros-react-core',
+    })
+
+    sourceEntity.addImportDeclaration({
+      defaultImport: '{ AnterosRow, AnterosCol }',
+      moduleSpecifier: '@anterostecnologia/anteros-react-layout',
     })
 
     sourceEntity.addImportDeclaration({
       defaultImport: `{ ${lName}, homeDefault }`,
       moduleSpecifier: '../route/routes',
     })
+
+    sourceEntity.addVariableStatement({
+      isExported: true,
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: ift.getName().toUpperCase() + '_SEARCH_MODAL',
+        initializer: `"${ift.getName()}Search"`,
+      }],
+    })
+  }
+
+  private makeSearchViewTable(sourceEntity : SourceFile, ift: InterfaceDeclaration, lName: string) {
+    const tableProps = sourceEntity.addInterface({
+      name: `${ift.getName()}TableProps<E extends AnterosEntity, TypeID>`,
+    })
+
+    tableProps.addProperty({
+      name: 'user',
+      type: 'UserData',
+    })
+
+    tableProps.addProperty({
+      name: 'needRefresh',
+      type: 'boolean',
+    })
+
+    tableProps.addProperty({
+      name: 'dataSource',
+      type: 'AnterosDatasource',
+    })
+
+    tableProps.addProperty({
+      name: 'currentFilter',
+      type: 'any',
+    })
+
+    tableProps.addProperty({
+      name: 'activeFilterIndex',
+      type: 'number',
+    })
+
+    tableProps.addMethod({
+      name: 'setDatasource',
+      parameters: [
+        {
+          name: 'dataSource',
+          type: 'AnterosDatasource',
+        },
+      ],
+      returnType: 'any',
+    })
+
+    tableProps.addMethod({
+      name: 'hideTour',
+      returnType: 'any',
+    })
+
+    tableProps.addMethod({
+      name: 'setFilter',
+      parameters: [
+        {
+          name: 'currentFilter',
+          type: 'any',
+        },
+        {
+          name: 'activeFilterIndex',
+          type: 'number',
+        },
+      ],
+      returnType: 'any',
+    })
+
+    tableProps.addProperty({
+      name: 'remoteResource',
+      type: 'IAnterosRemoteResource<E, TypeID>',
+    })
+
+    tableProps.addProperty({
+      name: 'history',
+      type: 'RouteComponentProps["history"]',
+    })
+
+    tableProps.addMethod({
+      name: 'onClickOk',
+      parameters: [
+        {
+          name: 'event',
+          type: 'any',
+        },
+        {
+          name: 'selectedRecords',
+          type: 'any',
+        },
+      ],
+      returnType: 'void',
+    })
+
+    tableProps.addMethod({
+      name: 'onClickCancel',
+      parameters: [
+        {
+          name: 'event',
+          type: 'any',
+        },
+      ],
+      returnType: 'void',
+    })
+
+    const tableClass = sourceEntity.addClass({
+      name: `${ift.getName()}Table`,
+    })
+
+    tableClass.setExtends(`Component<${ift.getName()}TableProps<${ift.getName()}Entity, any>>`)
+
+    tableClass.addDecorator({
+      name: 'boundClass',
+    })
+
+    const getFieldsFilter = tableClass.addMethod({
+      name: 'getFieldsFilter',
+      returnType: 'ReactNode',
+    })
+
+    getFieldsFilter.setBodyText('return ( \n' +
+      '<QueryFields> \n' +
+      '  <QueryField \n' +
+      '    name="id" \n' +
+      '    label="ID" \n' +
+      '    dataType="number" \n' +
+      '    sortable={true} \n' +
+      '    quickFilter={true} \n' +
+      '  /> \n' +
+      '</QueryFields> \n' +
+      ');')
+
+    const getRoutes = tableClass.addMethod({
+      name: 'getRoutes',
+      returnType: 'any',
+    })
+
+    getRoutes.setBodyText('return { \n' +
+      '  close: `${homeDefault}`, \n' +
+      '};')
+
+    const getColumns = tableClass.addMethod({
+      name: 'getColumns',
+      returnType: 'ReactNode',
+    })
+
+    getColumns.setBodyText('return ( \n' +
+      ' <Columns> \n' +
+      '   <AnterosDataTableColumn \n' +
+      '    dataField="id" \n' +
+      '    title="ID" \n' +
+      '    width="15%" \n' +
+      '    align="center" \n' +
+      '    titleAlign="center" \n' +
+      '    dataType="string" \n' +
+      '  /> \n' +
+      ' </Columns> \n' +
+      ' ); ')
+
+    const renderTable = tableClass.addMethod({
+      name: 'render',
+      returnType: 'ReactNode',
+    })
+
+    renderTable.setBodyText('const { \n' +
+    '  history, \n' +
+    '  remoteResource, \n' +
+    '  needRefresh, \n' +
+    '  user, \n' +
+    '  dataSource, \n' +
+    '  currentFilter, \n' +
+    '  activeFilterIndex, \n' +
+    '  setDatasource, \n' +
+    '  setFilter, \n' +
+    '  hideTour, \n' +
+    '} = this.props; \n' +
+    'return ( \n' +
+    '  <AnterosSearchTemplate \n' +
+    `    defaultSortFields="name${ift.getName()}"  \n` +
+    `    filterName="filter${ift.getName()}Search" \n` +
+    '    version="v1" \n' +
+    `    caption={"Consulta ${ift.getName()}"} \n` +
+    '    dataSource={dataSource} \n' +
+    `    viewName={"${lName}Search"} \n` +
+    '    user={user} \n' +
+    '    pageSize={PAGE_SIZE} \n' +
+    '    currentFilter={currentFilter} \n' +
+    '    needRefresh={needRefresh} \n' +
+    '    columns={this.getColumns()} \n' +
+    '    routes={this.getRoutes()} \n' +
+    '    fieldsFilter={this.getFieldsFilter()} \n' +
+    '    remoteResource={remoteResource} \n' +
+    '    setDatasource={setDatasource} \n' +
+    '    setFilter={setFilter} \n' +
+    '    hideTour={hideTour} \n' +
+    '    history={history} \n' +
+    '    activeFilterIndex={activeFilterIndex} \n' +
+    '    selectedRecords={[]} \n' +
+    '    labelField={""} \n' +
+    '    onClickOk={this.props.onClickOk} \n' +
+    '    onClickCancel={this.props.onClickCancel} \n' +
+    '  /> \n' +
+    ');')
   }
 
   private makeViewTable(sourceEntity : SourceFile, ift: InterfaceDeclaration, lName: string) {
@@ -716,7 +1002,7 @@ export default class Make extends Command {
       ');')
   }
 
-  private makeFormTable(sourceEntity : SourceFile, ift: InterfaceDeclaration, lName: string) {
+  private makeFormTable(sourceEntity : SourceFile, ift: InterfaceDeclaration) {
     const formProps = sourceEntity.addInterface({
       name: `${ift.getName()}FormProps`,
     })
@@ -812,8 +1098,8 @@ export default class Make extends Command {
     '    dataSource={this.props.dataSource} \n' +
     '    hideTour={this.props.hideTour} \n' +
     '    history={this.props.history} \n' +
-    '    caption={"Cidade"} \n' +
-    '    formName={"FCidade"} \n' +
+    `    caption={"${ift.getName()}"} \n` +
+    `    formName={"F${ift.getName()}"} \n` +
     '    setNeedRefresh={this.props.setNeedRefresh} \n' +
     '    saveRoute={this.props.saveRoute} \n' +
     '    cancelRoute={this.props.cancelRoute} \n' +
@@ -827,6 +1113,108 @@ export default class Make extends Command {
     '    </Fragment> \n' +
     '  </AnterosFormTemplate> \n' +
     '); ')
+  }
+
+  makeSearchView(base: string, override: boolean) : void {
+    const project = new Project()
+    project.addSourceFilesAtPaths('/Users/edsonmartins/projetos_react/cade-web/src/model/types.ts')
+    const typeFile = project.getSourceFileOrThrow('types.ts')
+    const interfaces = typeFile.getInterfaces()
+    console.log(`${CLIENT} criando consultas... ${base}`)
+
+    for (const ift of interfaces) {
+      if (base === 'all' || ift.getName() === base) {
+        console.log(`${CLIENT} criando consulta... ${ift.getName()}`)
+        const fileExists = project.getSourceFile(`${SRC_SEARCH}/${ift.getName()}Search.ts`)
+        if (fileExists && override) {
+          fileExists.deleteImmediately()
+        }
+
+        if (fileExists && !override) {
+          continue
+        }
+
+        const lName = ift.getName().charAt(0).toLowerCase() + ift.getName().slice(1)
+
+        const sourceEntity = project.createSourceFile(`${SRC_SEARCH}/${ift.getName()}Search.ts`, '', {overwrite: true})
+        this.addSearchImports(sourceEntity, ift, lName)
+
+        const searchClass = sourceEntity.addClass({
+          name: `${ift.getName()}Search`,
+        })
+
+        searchClass.setExtends(`AnterosSearchView<${ift.getName()}Entity, typeof ${ift.getName()}Entity.prototype.id>`)
+
+        searchClass.addDecorator({
+          name: 'boundClass',
+        })
+        const onCloseView = searchClass.addMethod({
+          name: 'onCloseView',
+        })
+
+        onCloseView.setBodyText('this.props.history.push(homeDefault);')
+
+        const isCloseViewEnabled = searchClass.addMethod({
+          name: 'isCloseViewEnabled',
+        })
+
+        isCloseViewEnabled.setBodyText('return (this.props.dataSource && this.props.dataSource.getState() === dataSourceConstants.DS_BROWSE);')
+
+        const getCaption = searchClass.addMethod({
+          name: 'getCaption',
+        })
+
+        getCaption.setBodyText(`return "Consulta ${ift.getName()}"`)
+
+        const getComponentSearch = searchClass.addMethod({
+          name: 'getComponentSearch',
+        })
+
+        getComponentSearch.setReturnType('ReactNode')
+        getComponentSearch.setBodyText('const { \n' +
+        '  setDatasource, \n' +
+        '  hideTour, \n' +
+        '  setFilter, \n' +
+        '  needRefresh, \n' +
+        '  dataSource, \n' +
+        '  user, \n' +
+        '  currentFilter, \n' +
+        '  history, \n' +
+        '  activeFilterIndex, \n' +
+        '} = this.props; \n' +
+        'return ( \n' +
+        `  <${ift.getName()}Table \n` +
+        '    user={user} \n' +
+        '    needRefresh={needRefresh} \n' +
+        '    dataSource={dataSource} \n' +
+        '    currentFilter={currentFilter} \n' +
+        '    activeFilterIndex={activeFilterIndex} \n' +
+        '    setDatasource={setDatasource} \n' +
+        '    setFilter={setFilter} \n' +
+        '    hideTour={hideTour} \n' +
+        '    remoteResource={this.controller.getResource()} \n' +
+        '    history={history} \n' +
+        '    onClickOk={this.props.onClickOk} \n' +
+        '    onClickCancel={this.props.onClickCancel} \n' +
+        '  /> \n' +
+        ');')
+
+        const getRouteName = searchClass.addMethod({
+          name: 'getRouteName',
+        })
+        getRouteName.setReturnType('string')
+        getRouteName.setBodyText(`return ${lName}`)
+
+        this.makeSearchViewTable(sourceEntity, ift, lName)
+
+        sourceEntity.addExportAssignment({
+          isExportEquals: false,
+          expression: `connectSearchViewWithStore(resolve<${ift.getName()}Controller>(TYPE.${lName}_controller)())(${ift.getName()}Search)`,
+        })
+
+        sourceEntity.save()
+      }
+    }
   }
 
   makeEntity(base : string, override: boolean) : void {
@@ -983,6 +1371,180 @@ export default class Make extends Command {
 
         this.makeView(flags.interface, flags.override)
       }
+
+      if (tp.trim() === SEARCH || tp.trim() === 'all') {
+        if (!flags.interface) {
+          console.log(`${CLIENT}${ERROR} Informe all para todas as interfaces ou informe o nome da interface desejada para gerar a consulta.`)
+          return
+        }
+
+        this.makeSearchView(flags.interface, flags.override)
+      }
     }
+  }
+}
+
+class IocHelper {
+  private project : Project;
+  private sourceIOC : SourceFile|undefined;
+
+  constructor(project: Project) {
+    this.project = project
+    try {
+      this.sourceIOC = project.addSourceFileAtPath(`${SRC_IOC}/ioc.ts`)
+    } catch {
+      this.sourceIOC = project.getSourceFile(`${SRC_IOC}/ioc.ts`)
+      this.makeIOC()
+    }
+  }
+
+  public addController(controller: string, name: string) : void {
+    if (this.sourceIOC) {
+      const _controller = `${name}: Symbol("${name}")`
+      const statements = this.sourceIOC.getStatements()
+      for (const st of statements) {
+        if (st.getText().startsWith('const TYPE')) {
+          let _type = st.getText()
+          _type = _type.replace(/\n/g, '')
+          _type = _type.slice(_type.indexOf('{') + 1, _type.indexOf('}'))
+          const typeSplit = _type.split(',')
+          let found = false
+          for (const s of typeSplit) {
+            // eslint-disable-next-line max-depth
+            if (_controller === s.trim()) {
+              found = true
+            }
+          }
+
+          if (!found) {
+            let newValue = 'const TYPE = { '
+            let appendDelimiter = false
+            // eslint-disable-next-line max-depth
+            for (const s of typeSplit) {
+              // eslint-disable-next-line max-depth
+              if (appendDelimiter) {
+                newValue += ', '
+              }
+
+              newValue += s.trim()
+              appendDelimiter = true
+            }
+
+            // eslint-disable-next-line max-depth
+            if (appendDelimiter) {
+              newValue += ', '
+            }
+
+            newValue += _controller + ' };'
+            st.replaceWithText(newValue)
+            this.sourceIOC.formatText()
+            this.sourceIOC.save()
+            return
+          }
+        }
+      }
+    }
+  }
+
+
+
+  makeIOC() : void {
+    this.sourceIOC = this.project.createSourceFile(`${SRC_IOC}/ioc.ts`, '', {overwrite: true})
+
+    this.sourceIOC.addImportDeclaration({
+      defaultImport: '{ContainerIoc, createDecorator, createResolve, createWire}',
+      moduleSpecifier: '@anterostecnologia/anteros-react-ioc',
+    })
+
+    this.sourceIOC.addImportDeclaration({
+      defaultImport: '{AnterosAxiosApiClient, IAnterosApiClient, UserConfig, IAnterosUserService, AnterosKeycloakUserService}',
+      moduleSpecifier: '@anterostecnologia/anteros-react-api2',
+    })
+
+    this.sourceIOC.addImportDeclaration({
+      defaultImport: '{AuthenticationController, IAuthenticationController}',
+      moduleSpecifier: '../controller/AuthenticationController',
+    })
+
+    this.sourceIOC.addImportDeclaration({
+      defaultImport: '{AnterosDatasourceApiAdapter as apiAdapter}',
+      moduleSpecifier: '@anterostecnologia/anteros-react-datasource',
+    })
+
+    this.sourceIOC.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: 'TYPE',
+        initializer: '{ \n' +
+        'user_config: Symbol("user_config"), \n' +
+        'user_service: Symbol("user_service"), \n' +
+        'auth_controller: Symbol("auth_controller"), \n' +
+        'api_client: Symbol("api_client") \n' +
+        '}',
+      }],
+    })
+
+    this.sourceIOC.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: 'container',
+        initializer: 'new ContainerIoc()',
+      }],
+    })
+
+    this.sourceIOC.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: 'inject',
+        initializer: 'createDecorator(container)',
+      }],
+    })
+
+    this.sourceIOC.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: 'resolve',
+        initializer: 'createResolve(container)',
+      }],
+    })
+
+    this.sourceIOC.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: 'wire',
+        initializer: 'createWire(container)',
+      }],
+    })
+
+    this.sourceIOC.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: 'userConfig',
+        initializer: 'new UserConfig("url","realm","clientId","clientSecret","owner")',
+      }],
+    })
+
+    this.sourceIOC.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: 'userService',
+        initializer: 'new AnterosKeycloakUserService(userConfig)',
+      }],
+    })
+
+    this.sourceIOC.addVariableStatement({
+      declarationKind: VariableDeclarationKind.Const,
+      declarations: [{
+        name: 'apiClient',
+        initializer: 'new AnterosAxiosApiClient({urlBase: "url_api"},userService)',
+      }],
+    })
+
+    this.sourceIOC.addStatements('apiAdapter.changeApi(apiClient.getClient())')
+    this.sourceIOC.addStatements('container.bind<UserConfig>(TYPE.user_config).toValue(userConfig)')
+    this.sourceIOC.addStatements('container.bind<IAnterosUserService>(TYPE.user_service).toValue(userService)')
+    this.sourceIOC.addStatements('container.bind<IAuthenticationController>(TYPE.auth_controller).to(AuthenticationController)')
+    this.sourceIOC.addStatements('container.bind<IAnterosApiClient>(TYPE.api_client).toValue(apiClient)')
+    this.sourceIOC.save()
   }
 }

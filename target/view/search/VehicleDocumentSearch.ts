@@ -1,7 +1,7 @@
 import React, { Component, Fragment, ReactNode } from "react";
 import { UserData, IAnterosRemoteResource } from "@anterostecnologia/anteros-react-api2";
-import { AnterosEntity, AnterosEntity, ADD, AnterosView, AnterosViewProps, AnterosViewState, connectViewWithStore, EDIT, SEARCH } from "@anterostecnologia/anteros-react-mvc";
-import { AnterosTableTemplate, AnterosFormTemplate, AnterosFormComponent, AnterosFormComponentProps, AnterosFormComponentState } from "@anterostecnologia/anteros-react-template2";
+import { AnterosEntity, ADD, AnterosSearchView, connectSearchViewWithStore } from "@anterostecnologia/anteros-react-mvc";
+import { AnterosTableTemplate, AnterosSearchTemplate } from "@anterostecnologia/anteros-react-template2";
 import { PAGE_SIZE } from "../AppConstants";
 import {resolve, TYPE} from "../ioc/ioc";
 import {VehicleDocumentController} from "../controller/VehicleDocumentController";
@@ -12,19 +12,12 @@ import { RouteComponentProps } from "react-router";
 import { QueryFields, QueryField } from "@anterostecnologia/anteros-react-querybuilder";
 import { boundClass, AnterosSweetAlert, If, Then } from "@anterostecnologia/anteros-react-core";
 import { AnterosRow, AnterosCol } from "@anterostecnologia/anteros-react-layout";
-import { AnterosFormGroup } from "@anterostecnologia/anteros-react-containers";
-import { AnterosLabel } from "@anterostecnologia/anteros-react-label";
-import { AnterosEdit } from "@anterostecnologia/anteros-react-editors";
 import { vehicleDocument, homeDefault } from "../route/routes";
 
-interface VehicleDocumentViewProps extends AnterosViewProps<VehicleDocumentEntity, typeof VehicleDocumentEntity.prototype.id> {
-}
-
-interface VehicleDocumentViewState extends AnterosViewState {
-}
+export const VEHICLEDOCUMENT_SEARCH_MODAL = "VehicleDocumentSearch";
 
 @boundClass
-class VehicleDocumentView extends AnterosView<VehicleDocumentEntity, typeof VehicleDocumentEntity.prototype.id,  VehicleDocumentViewProps, VehicleDocumentViewState> {
+class VehicleDocumentSearch extends AnterosSearchView<VehicleDocumentEntity, typeof VehicleDocumentEntity.prototype.id> {
     onCloseView() {
         this.props.history.push(homeDefault);
     }
@@ -34,23 +27,23 @@ class VehicleDocumentView extends AnterosView<VehicleDocumentEntity, typeof Vehi
     }
 
     getCaption() {
-        return "VehicleDocument"
+        return "Consulta VehicleDocument"
     }
 
     getComponentSearch(): ReactNode {
         const { 
-        setDatasource, 
-        hideTour, 
-        setFilter, 
-        needRefresh, 
-        dataSource, 
-        user, 
-        currentFilter, 
-        history, 
-        activeFilterIndex, 
+          setDatasource, 
+          hideTour, 
+          setFilter, 
+          needRefresh, 
+          dataSource, 
+          user, 
+          currentFilter, 
+          history, 
+          activeFilterIndex, 
         } = this.props; 
         return ( 
-         <VehicleDocumentTable 
+          <VehicleDocumentTable 
             user={user} 
             needRefresh={needRefresh} 
             dataSource={dataSource} 
@@ -61,27 +54,14 @@ class VehicleDocumentView extends AnterosView<VehicleDocumentEntity, typeof Vehi
             hideTour={hideTour} 
             remoteResource={this.controller.getResource()} 
             history={history} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 
     getRouteName(): string {
         return vehicleDocument
-    }
-
-    getComponentForm(): ReactNode {
-        return ( 
-        <VehicleDocumentForm 
-          needRefresh={this.props.needRefresh} 
-          hideTour={this.props.hideTour} 
-          history={this.props.history} 
-          setNeedRefresh={this.props.setNeedRefresh} 
-          dataSource={this.props.dataSource} 
-          cancelRoute={this.getRouteName()+"/"+SEARCH} 
-          saveRoute={this.getRouteName()+"/"+SEARCH} 
-          user={this.props.user} 
-        /> 
-        ); 
     }
 }
 
@@ -96,6 +76,8 @@ interface VehicleDocumentTableProps<E extends AnterosEntity, TypeID> {
     setFilter(currentFilter: any, activeFilterIndex: number): any;
     remoteResource: IAnterosRemoteResource<E, TypeID>;
     history: RouteComponentProps["history"];
+    onClickOk(event: any, selectedRecords: any): void;
+    onClickCancel(event: any): void;
 }
 
 @boundClass
@@ -116,8 +98,6 @@ class VehicleDocumentTable extends Component<VehicleDocumentTableProps<VehicleDo
 
     getRoutes(): any {
         return { 
-          add: `${vehicleDocument}/${ADD}`, 
-          edit: `${vehicleDocument}/${EDIT}`, 
           close: `${homeDefault}`, 
         };
     }
@@ -151,13 +131,13 @@ class VehicleDocumentTable extends Component<VehicleDocumentTableProps<VehicleDo
           hideTour, 
         } = this.props; 
         return ( 
-          <AnterosTableTemplate 
-            defaultSortFields="id" 
-            filterName="filterVehicleDocument" 
+          <AnterosSearchTemplate 
+            defaultSortFields="nameVehicleDocument"  
+            filterName="filterVehicleDocumentSearch" 
             version="v1" 
-            caption={"VehicleDocument"} 
+            caption={"Consulta VehicleDocument"} 
             dataSource={dataSource} 
-            viewName={"vehicleDocumentView"} 
+            viewName={"vehicleDocumentSearch"} 
             user={user} 
             pageSize={PAGE_SIZE} 
             currentFilter={currentFilter} 
@@ -171,64 +151,13 @@ class VehicleDocumentTable extends Component<VehicleDocumentTableProps<VehicleDo
             hideTour={hideTour} 
             history={history} 
             activeFilterIndex={activeFilterIndex} 
+            selectedRecords={[]} 
+            labelField={""} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 }
 
-interface VehicleDocumentFormProps extends AnterosFormComponentProps {
-    dataSource: AnterosDatasource;
-    saveRoute: string;
-    cancelRoute: string;
-    needRefresh: boolean;
-    hideTour(): any;
-    history: RouteComponentProps["history"];
-    setNeedRefresh: Function | undefined;
-    user: UserData;
-}
-
-interface VehicleDocumentFormsState extends AnterosFormComponentState {
-}
-
-@boundClass
-class VehicleDocumentForm extends AnterosFormComponent<VehicleDocumentFormProps, VehicleDocumentFormsState> {
-    constructor(props: VehicleDocumentFormProps) {
-        super(props); 
-         this.state = { 
-          modalOpen: undefined, 
-          lookup: "", 
-          alertIsOpen: false, 
-          alertMessage: undefined, 
-          fieldName: undefined, 
-        };
-    }
-
-    onBeforeSave(): boolean {
-        return true;
-    }
-
-    render(): ReactNode {
-        return ( 
-          <AnterosFormTemplate 
-            dataSource={this.props.dataSource} 
-            hideTour={this.props.hideTour} 
-            history={this.props.history} 
-            caption={"VehicleDocument"} 
-            formName={"FVehicleDocument"} 
-            setNeedRefresh={this.props.setNeedRefresh} 
-            saveRoute={this.props.saveRoute} 
-            cancelRoute={this.props.cancelRoute} 
-            onBeforeSave={this.onBeforeSave} 
-          > 
-            <Fragment> 
-              <AnterosRow> 
-                <AnterosCol small={12}> 
-                </AnterosCol> 
-              </AnterosRow> 
-            </Fragment> 
-          </AnterosFormTemplate> 
-        ); 
-    }
-}
-
-export default connectViewWithStore(resolve<VehicleDocumentController>(TYPE.vehicleDocument_controller)())(VehicleDocumentView);
+export default connectSearchViewWithStore(resolve<VehicleDocumentController>(TYPE.vehicleDocument_controller)())(VehicleDocumentSearch);

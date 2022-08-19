@@ -1,7 +1,7 @@
 import React, { Component, Fragment, ReactNode } from "react";
 import { UserData, IAnterosRemoteResource } from "@anterostecnologia/anteros-react-api2";
-import { AnterosEntity, AnterosEntity, ADD, AnterosView, AnterosViewProps, AnterosViewState, connectViewWithStore, EDIT, SEARCH } from "@anterostecnologia/anteros-react-mvc";
-import { AnterosTableTemplate, AnterosFormTemplate, AnterosFormComponent, AnterosFormComponentProps, AnterosFormComponentState } from "@anterostecnologia/anteros-react-template2";
+import { AnterosEntity, ADD, AnterosSearchView, connectSearchViewWithStore } from "@anterostecnologia/anteros-react-mvc";
+import { AnterosTableTemplate, AnterosSearchTemplate } from "@anterostecnologia/anteros-react-template2";
 import { PAGE_SIZE } from "../AppConstants";
 import {resolve, TYPE} from "../ioc/ioc";
 import {VehicleController} from "../controller/VehicleController";
@@ -12,19 +12,12 @@ import { RouteComponentProps } from "react-router";
 import { QueryFields, QueryField } from "@anterostecnologia/anteros-react-querybuilder";
 import { boundClass, AnterosSweetAlert, If, Then } from "@anterostecnologia/anteros-react-core";
 import { AnterosRow, AnterosCol } from "@anterostecnologia/anteros-react-layout";
-import { AnterosFormGroup } from "@anterostecnologia/anteros-react-containers";
-import { AnterosLabel } from "@anterostecnologia/anteros-react-label";
-import { AnterosEdit } from "@anterostecnologia/anteros-react-editors";
 import { vehicle, homeDefault } from "../route/routes";
 
-interface VehicleViewProps extends AnterosViewProps<VehicleEntity, typeof VehicleEntity.prototype.id> {
-}
-
-interface VehicleViewState extends AnterosViewState {
-}
+export const VEHICLE_SEARCH_MODAL = "VehicleSearch";
 
 @boundClass
-class VehicleView extends AnterosView<VehicleEntity, typeof VehicleEntity.prototype.id,  VehicleViewProps, VehicleViewState> {
+class VehicleSearch extends AnterosSearchView<VehicleEntity, typeof VehicleEntity.prototype.id> {
     onCloseView() {
         this.props.history.push(homeDefault);
     }
@@ -34,23 +27,23 @@ class VehicleView extends AnterosView<VehicleEntity, typeof VehicleEntity.protot
     }
 
     getCaption() {
-        return "Vehicle"
+        return "Consulta Vehicle"
     }
 
     getComponentSearch(): ReactNode {
         const { 
-        setDatasource, 
-        hideTour, 
-        setFilter, 
-        needRefresh, 
-        dataSource, 
-        user, 
-        currentFilter, 
-        history, 
-        activeFilterIndex, 
+          setDatasource, 
+          hideTour, 
+          setFilter, 
+          needRefresh, 
+          dataSource, 
+          user, 
+          currentFilter, 
+          history, 
+          activeFilterIndex, 
         } = this.props; 
         return ( 
-         <VehicleTable 
+          <VehicleTable 
             user={user} 
             needRefresh={needRefresh} 
             dataSource={dataSource} 
@@ -61,27 +54,14 @@ class VehicleView extends AnterosView<VehicleEntity, typeof VehicleEntity.protot
             hideTour={hideTour} 
             remoteResource={this.controller.getResource()} 
             history={history} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 
     getRouteName(): string {
         return vehicle
-    }
-
-    getComponentForm(): ReactNode {
-        return ( 
-        <VehicleForm 
-          needRefresh={this.props.needRefresh} 
-          hideTour={this.props.hideTour} 
-          history={this.props.history} 
-          setNeedRefresh={this.props.setNeedRefresh} 
-          dataSource={this.props.dataSource} 
-          cancelRoute={this.getRouteName()+"/"+SEARCH} 
-          saveRoute={this.getRouteName()+"/"+SEARCH} 
-          user={this.props.user} 
-        /> 
-        ); 
     }
 }
 
@@ -96,6 +76,8 @@ interface VehicleTableProps<E extends AnterosEntity, TypeID> {
     setFilter(currentFilter: any, activeFilterIndex: number): any;
     remoteResource: IAnterosRemoteResource<E, TypeID>;
     history: RouteComponentProps["history"];
+    onClickOk(event: any, selectedRecords: any): void;
+    onClickCancel(event: any): void;
 }
 
 @boundClass
@@ -116,8 +98,6 @@ class VehicleTable extends Component<VehicleTableProps<VehicleEntity, any>> {
 
     getRoutes(): any {
         return { 
-          add: `${vehicle}/${ADD}`, 
-          edit: `${vehicle}/${EDIT}`, 
           close: `${homeDefault}`, 
         };
     }
@@ -151,13 +131,13 @@ class VehicleTable extends Component<VehicleTableProps<VehicleEntity, any>> {
           hideTour, 
         } = this.props; 
         return ( 
-          <AnterosTableTemplate 
-            defaultSortFields="id" 
-            filterName="filterVehicle" 
+          <AnterosSearchTemplate 
+            defaultSortFields="nameVehicle"  
+            filterName="filterVehicleSearch" 
             version="v1" 
-            caption={"Vehicle"} 
+            caption={"Consulta Vehicle"} 
             dataSource={dataSource} 
-            viewName={"vehicleView"} 
+            viewName={"vehicleSearch"} 
             user={user} 
             pageSize={PAGE_SIZE} 
             currentFilter={currentFilter} 
@@ -171,64 +151,13 @@ class VehicleTable extends Component<VehicleTableProps<VehicleEntity, any>> {
             hideTour={hideTour} 
             history={history} 
             activeFilterIndex={activeFilterIndex} 
+            selectedRecords={[]} 
+            labelField={""} 
+            onClickOk={this.props.onClickOk} 
+            onClickCancel={this.props.onClickCancel} 
           /> 
         );
     }
 }
 
-interface VehicleFormProps extends AnterosFormComponentProps {
-    dataSource: AnterosDatasource;
-    saveRoute: string;
-    cancelRoute: string;
-    needRefresh: boolean;
-    hideTour(): any;
-    history: RouteComponentProps["history"];
-    setNeedRefresh: Function | undefined;
-    user: UserData;
-}
-
-interface VehicleFormsState extends AnterosFormComponentState {
-}
-
-@boundClass
-class VehicleForm extends AnterosFormComponent<VehicleFormProps, VehicleFormsState> {
-    constructor(props: VehicleFormProps) {
-        super(props); 
-         this.state = { 
-          modalOpen: undefined, 
-          lookup: "", 
-          alertIsOpen: false, 
-          alertMessage: undefined, 
-          fieldName: undefined, 
-        };
-    }
-
-    onBeforeSave(): boolean {
-        return true;
-    }
-
-    render(): ReactNode {
-        return ( 
-          <AnterosFormTemplate 
-            dataSource={this.props.dataSource} 
-            hideTour={this.props.hideTour} 
-            history={this.props.history} 
-            caption={"Vehicle"} 
-            formName={"FVehicle"} 
-            setNeedRefresh={this.props.setNeedRefresh} 
-            saveRoute={this.props.saveRoute} 
-            cancelRoute={this.props.cancelRoute} 
-            onBeforeSave={this.onBeforeSave} 
-          > 
-            <Fragment> 
-              <AnterosRow> 
-                <AnterosCol small={12}> 
-                </AnterosCol> 
-              </AnterosRow> 
-            </Fragment> 
-          </AnterosFormTemplate> 
-        ); 
-    }
-}
-
-export default connectViewWithStore(resolve<VehicleController>(TYPE.vehicle_controller)())(VehicleView);
+export default connectSearchViewWithStore(resolve<VehicleController>(TYPE.vehicle_controller)())(VehicleSearch);

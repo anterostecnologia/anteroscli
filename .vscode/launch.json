@@ -7,7 +7,7 @@
       "name": "Launch Program",
       "program": "${workspaceFolder}/bin/run",
       "args": [
-        "make",
+        "make all -i all -t all",
       ]
     }
   ]
