@@ -20,7 +20,7 @@
     "@oclif/color": "^1.0.1",
     "@oclif/core": "^1",
     "@oclif/plugin-help": "^5",
-    "@oclif/plugin-plugins": "^2.0.1",
+    "@oclif/plugin-plugins": "^2.1.1",
     "supports-color": "^9.2.2",
     "ts-file-parser": "^0.0.21",
     "ts-morph": "^15.1.0"
